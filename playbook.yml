@@ -2,38 +2,45 @@
  
  - hosts: all
    become: true
-   tasks:
+   pre_tasks:
  
-   - name: update repository index
+   - name: update and upgrade (ubuntu)
+     tags: always
      apt:
        update_cache: yes
+       upgrade: dist
      when: ansible_distribution == "Ubuntu"
 
-   - name: install apache2 package
-     apt:
-       name: apache2
+   - name: update and upgrade (centos)
+     tags: always
+     yum:
+       update_only: yes
+       name: "*"
        state: latest
-     when: ansible_distribution == "Ubuntu"
-
-   - name: add php support for apache
-     apt:
-       name: libapache2-mod-php
-       state: latest
-     when: ansible_distribution == "Ubuntu"
-
-   - name: update repository index
-     ansible.builtin.dnf:
-       update_cache: yes
      when: ansible_distribution == "CentOS"
 
-   - name: install apache2 package
-     ansible.builtin.dnf:
+ - hosts: all
+   become: true
+   tasks:
+
+   - name: install apache for ubuntu and centos (package module)
+     tags: always
+     package:
+       name: "{{apache_package}}"
+       
+   - name: start and enable httpd (CentOS)
+     tags: apache,centos,httpd
+     service:
        name: httpd
-       state: latest
+       state: started
+       enabled: yes
      when: ansible_distribution == "CentOS"
 
-   - name: add php support for apache
-     ansible.builtin.dnf:
-       name: php
-       state: latest
-     when: ansible_distribution == "CentOS"
+   - name: copy html file for site
+     tags: apache,apache,apache2,httpd
+     copy:
+       src: default_site.html
+       dest: /var/www/html/index.html
+       owner: ansible_master
+       group: ansible_master
+       mode: 0644
